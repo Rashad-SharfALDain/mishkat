@@ -1,0 +1,212 @@
+@import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@300;400;500;600;700;800;900&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  direction: rtl;
+  text-align: right;
+  scroll-behavior: smooth;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-arabic);
+  background-color: var(--color-bg-main);
+  color: var(--color-text-main);
+  line-height: 1.7;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+img, svg, picture {
+  display: block;
+  max-width: 100%;
+}
+
+input, button, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Layout Utilities */
+.container {
+  width: 100%;
+  max-width: 1240px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.section {
+  padding-top: 80px;
+  padding-bottom: 80px;
+  position: relative;
+}
+
+.section-dark {
+  background-color: var(--color-bg-dark);
+  color: var(--color-text-inverse);
+}
+
+.section-subtle {
+  background-color: var(--color-bg-subtle);
+}
+
+/* Decorative subtle Islamic geometric motif for section headers */
+.decorative-motif {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: var(--color-gold);
+}
+
+.decorative-motif .line {
+  width: 36px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-gold));
+}
+
+.decorative-motif .line.reversed {
+  background: linear-gradient(90deg, var(--color-gold), transparent);
+}
+
+/* Typography styles */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--color-primary-dark);
+}
+
+.section-dark h1,
+.section-dark h2,
+.section-dark h3,
+.section-dark h4 {
+  color: var(--color-text-inverse);
+}
+
+.section-header {
+  text-align: center;
+  max-width: 760px;
+  margin: 0 auto 50px auto;
+}
+
+.section-badge {
+  display: inline-block;
+  padding: 6px 16px;
+  background-color: var(--color-gold-subtle);
+  color: var(--color-gold-dark);
+  border: 1px solid var(--color-gold-border);
+  border-radius: var(--radius-full);
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: var(--color-primary-dark);
+  margin-bottom: 14px;
+}
+
+.section-desc {
+  font-size: 1.1rem;
+  color: var(--color-text-muted);
+  line-height: 1.8;
+}
+
+.section-dark .section-title {
+  color: #ffffff;
+}
+
+.section-dark .section-desc {
+  color: #cbd5e1;
+}
+
+/* Callout quote */
+.quote-banner {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  border: 1px solid var(--color-gold);
+  border-radius: var(--radius-xl);
+  padding: 40px;
+  color: #ffffff;
+  text-align: center;
+  box-shadow: var(--shadow-xl);
+  position: relative;
+  overflow: hidden;
+}
+
+.quote-banner::before {
+  content: '“';
+  position: absolute;
+  top: -20px;
+  right: 30px;
+  font-size: 120px;
+  font-family: var(--font-serif-arabic);
+  color: rgba(223, 171, 45, 0.15);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.quote-text {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.6;
+  color: #ffffff;
+  margin-bottom: 12px;
+}
+
+.quote-highlight {
+  color: var(--color-gold-light);
+  display: inline-block;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-subtle);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-medium);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold);
+}
+
+@media (max-width: 768px) {
+  .section {
+    padding-top: 55px;
+    padding-bottom: 55px;
+  }
+  .section-title {
+    font-size: 1.75rem;
+  }
+  .quote-text {
+    font-size: 1.25rem;
+  }
+}

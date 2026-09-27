@@ -1,0 +1,64 @@
+:root {
+  /* Brand Color Palette - Deep Emerald, Warm Gold, Off-White, Deep Charcoal */
+  --color-primary: #0a3a2a;
+  --color-primary-dark: #06261b;
+  --color-primary-light: #12543e;
+  --color-primary-hover: #0d4633;
+  --color-primary-subtle: #e8f3ee;
+  
+  --color-gold: #c69214;
+  --color-gold-dark: #a17409;
+  --color-gold-light: #dfab2d;
+  --color-gold-subtle: #faf4e6;
+  --color-gold-border: #eedbb2;
+  
+  --color-bg-main: #fbfaf6;
+  --color-bg-surface: #ffffff;
+  --color-bg-subtle: #f5f2e9;
+  --color-bg-card: #ffffff;
+  --color-bg-dark: #072218;
+
+  --color-text-main: #19241e;
+  --color-text-muted: #526058;
+  --color-text-light: #83928a;
+  --color-text-inverse: #ffffff;
+  --color-text-gold: #b3820d;
+
+  --color-border-light: #e8e4d8;
+  --color-border-medium: #d6cfbe;
+  
+  /* Status Colors */
+  --status-new: #0284c7;
+  --status-new-bg: #e0f2fe;
+  --status-review: #d97706;
+  --status-review-bg: #fef3c7;
+  --status-accepted: #15803d;
+  --status-accepted-bg: #dcfce7;
+  --status-rejected: #b91c1c;
+  --status-rejected-bg: #fee2e2;
+  --status-completed: #4f46e5;
+  --status-completed-bg: #e0e7ff;
+
+  /* Typography */
+  --font-arabic: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif-arabic: 'Amiri', serif, Georgia;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(10, 58, 42, 0.05), 0 1px 2px rgba(10, 58, 42, 0.08);
+  --shadow-md: 0 4px 12px rgba(10, 58, 42, 0.08), 0 2px 4px rgba(10, 58, 42, 0.04);
+  --shadow-lg: 0 12px 28px rgba(10, 58, 42, 0.12), 0 4px 10px rgba(10, 58, 42, 0.06);
+  --shadow-xl: 0 20px 40px rgba(10, 58, 42, 0.16), 0 8px 16px rgba(10, 58, 42, 0.08);
+  --shadow-gold: 0 6px 20px rgba(198, 146, 20, 0.25);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
