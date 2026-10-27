@@ -50,20 +50,43 @@ export const ApplicantsTable: React.FC = () => {
       showToast('لا توجد بيانات للتصدير', 'info');
       return;
     }
-    const headers = ['رقم الطلب', 'اسم الطالب', 'تاريخ الميلاد', 'الصف', 'المدرسة', 'المدينة', 'الهاتف', 'ولي الأمر', 'هاتف ولي الأمر', 'الحالة', 'تاريخ التقديم'];
-    const rows = applicants.map((a) => [
-      a.application_number,
-      a.student_name,
-      a.date_of_birth,
-      a.grade,
-      a.school,
-      a.city,
-      a.phone,
-      a.guardian_name,
-      a.guardian_phone,
-      a.status,
-      new Date(a.created_at).toLocaleDateString('ar-SA'),
-    ]);
+    const headers = [
+      'رقم الطلب',
+      'اسم الطالب المسجل',
+      'الاسم القانوني الرباعي',
+      'حالة توثيق الاسم',
+      'تاريخ الميلاد',
+      'الصف',
+      'المدرسة',
+      'المدينة',
+      'الهاتف',
+      'ولي الأمر',
+      'هاتف ولي الأمر',
+      'حالة الطلب',
+      'تاريخ التقديم',
+    ];
+    const rows = applicants.map((a) => {
+      const legalNameCol = a.is_verified_legal
+        ? (a.verified_legal_name || a.legal_full_name || '')
+        : (a.legal_full_name ? `${a.legal_full_name} (غير موثق)` : 'غير مدخل');
+      const statusLabel = a.name_verification_label || (a.name_verification_status === 'verified' ? 'موثق رسمياً' : 'غير موثق');
+
+      return [
+        a.application_number || '',
+        `"${(a.student_name || '').replace(/"/g, '""')}"`,
+        `"${legalNameCol.replace(/"/g, '""')}"`,
+        `"${statusLabel.replace(/"/g, '""')}"`,
+        a.date_of_birth || '',
+        a.grade || '',
+        `"${(a.school || '').replace(/"/g, '""')}"`,
+        `"${(a.city || '').replace(/"/g, '""')}"`,
+        `"\t${a.phone || ''}"`,
+        `"${(a.guardian_name || '').replace(/"/g, '""')}"`,
+        `"\t${a.guardian_phone || ''}"`,
+        a.status || '',
+        a.created_at ? new Date(a.created_at).toLocaleDateString('ar-SA') : '',
+      ];
+    });
 
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers, ...rows].map((e) => e.join(',')).join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -73,7 +96,7 @@ export const ApplicantsTable: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast('تم تصدير ملف CSV بنجاح', 'success');
+    showToast('تم تصدير ملف CSV بنجاح مع بيانات الاسم القانوني وحالة التوثيق', 'success');
   };
 
   const statuses = ['الكل', 'جديد', 'قيد المراجعة', 'مقبول', 'مرفوض', 'مكتمل'];
@@ -187,7 +210,18 @@ export const ApplicantsTable: React.FC = () => {
                     {app.application_number}
                   </td>
                   <td style={{ fontWeight: 700, color: 'var(--color-primary-dark)' }}>
-                    {app.student_name}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{app.student_name}</span>
+                      {app.is_verified_legal ? (
+                        <span className="badge badge-accepted" style={{ fontSize: '0.68rem', padding: '1px 5px' }} title="اسم قانوني موثق">
+                          ✓ موثق
+                        </span>
+                      ) : (
+                        <span className="badge" style={{ fontSize: '0.68rem', padding: '1px 5px', backgroundColor: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }} title={app.name_verification_label || 'غير موثق'}>
+                          {app.name_verification_label || 'غير موثق'}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td>
                     <div>{app.grade}</div>

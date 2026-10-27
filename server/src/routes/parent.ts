@@ -1,21 +1,26 @@
 import { Router, Response } from 'express';
 import { query, run, queryOne } from '../db/database';
 import { requireParent, AuthRequest } from '../middleware/auth';
+import { enrichWithLegalNameMetadata } from '../utils/legalName';
 
 const router = Router();
 
 // Helper to verify that the student is actively linked to this parent (Strict IDOR prevention)
 async function verifyParentStudentLink(parentUserId: string, studentId: string): Promise<any | null> {
-  return await queryOne(`
+  const record = await queryOne(`
     SELECT ps.id as link_id, ps.relationship as link_relationship, ps.is_primary,
            s.id, s.student_number, s.admission_date, s.academic_status,
            s.current_grade, s.current_level, s.educational_track,
+           s.legal_full_name, s.name_verification_status,
            a.student_name, a.school, a.city, a.date_of_birth, a.gender
     FROM parent_student ps
     JOIN students s ON s.id = ps.student_id
     LEFT JOIN applicants a ON a.id = s.applicant_id
     WHERE ps.parent_user_id = ? AND s.id = ? AND ps.status = 'active'
   `, [parentUserId, studentId]);
+
+  if (!record) return null;
+  return enrichWithLegalNameMetadata(record);
 }
 
 // GET /api/parent/dashboard
@@ -41,7 +46,7 @@ router.get('/dashboard', requireParent, async (req: AuthRequest, res: Response):
     }
 
     // 2. Fetch all linked children (Strictly filtered to authenticated parent)
-    const children = await query(`
+    const rawChildren = await query(`
       SELECT 
         s.id,
         s.student_number,
@@ -50,6 +55,8 @@ router.get('/dashboard', requireParent, async (req: AuthRequest, res: Response):
         s.current_grade,
         s.current_level,
         s.educational_track,
+        s.legal_full_name,
+        s.name_verification_status,
         a.student_name,
         a.school,
         a.city,
@@ -61,6 +68,8 @@ router.get('/dashboard', requireParent, async (req: AuthRequest, res: Response):
       WHERE ps.parent_user_id = ? AND ps.status = 'active'
       ORDER BY ps.is_primary DESC, s.created_at ASC
     `, [parentUserId]);
+
+    const children = rawChildren.map(c => enrichWithLegalNameMetadata(c));
 
     // 3. Announcements for parents
     const announcements = await query(`
@@ -181,7 +190,7 @@ router.patch('/profile', requireParent, async (req: AuthRequest, res: Response):
 router.get('/students', requireParent, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const parentUserId = req.user?.id;
-    const students = await query(`
+    const rawStudents = await query(`
       SELECT 
         s.id,
         s.student_number,
@@ -190,6 +199,8 @@ router.get('/students', requireParent, async (req: AuthRequest, res: Response): 
         s.current_grade,
         s.current_level,
         s.educational_track,
+        s.legal_full_name,
+        s.name_verification_status,
         a.student_name,
         a.school,
         a.city,
@@ -201,6 +212,8 @@ router.get('/students', requireParent, async (req: AuthRequest, res: Response): 
       WHERE ps.parent_user_id = ? AND ps.status = 'active'
       ORDER BY ps.is_primary DESC, s.created_at ASC
     `, [parentUserId]);
+
+    const students = rawStudents.map(s => enrichWithLegalNameMetadata(s));
 
     res.json({ success: true, students });
   } catch (error) {
@@ -229,6 +242,11 @@ router.get('/students/:id', requireParent, async (req: AuthRequest, res: Respons
         id: child.id,
         student_number: child.student_number,
         student_name: child.student_name,
+        legal_full_name: child.legal_full_name || null,
+        verified_legal_name: child.verified_legal_name,
+        name_verification_status: child.name_verification_status,
+        name_verification_label: child.name_verification_label,
+        is_verified_legal: child.is_verified_legal,
         academic_status: child.academic_status,
         current_grade: child.current_grade,
         current_level: child.current_level,
@@ -285,6 +303,9 @@ router.get('/students/:id/attendance', requireParent, async (req: AuthRequest, r
       success: true,
       student_id: child.id,
       student_name: child.student_name,
+      legal_full_name: child.legal_full_name || null,
+      verified_legal_name: child.verified_legal_name,
+      name_verification_status: child.name_verification_status,
       status_message: totalSessions > 0 ? 'سجل الحضور محدث ومتاح للمتابعة' : 'سيتم تفعيل متابعة الحضور قريبًا',
       attendance_rate: rate,
       summary: {
@@ -336,6 +357,9 @@ router.get('/students/:id/progress', requireParent, async (req: AuthRequest, res
       success: true,
       student_id: child.id,
       student_name: child.student_name,
+      legal_full_name: child.legal_full_name || null,
+      verified_legal_name: child.verified_legal_name,
+      name_verification_status: child.name_verification_status,
       educational_track: child.educational_track,
       current_level: child.current_level,
       status_message: publishedEvals.length > 0
@@ -394,6 +418,9 @@ router.get('/students/:id/activities', requireParent, async (req: AuthRequest, r
       success: true,
       student_id: child.id,
       student_name: child.student_name,
+      legal_full_name: child.legal_full_name || null,
+      verified_legal_name: child.verified_legal_name,
+      name_verification_status: child.name_verification_status,
       activities,
     });
   } catch (error) {

@@ -17,6 +17,7 @@ import evaluationsRouter from './routes/evaluations';
 import notificationsRouter from './routes/notifications';
 import adminUsersRouter from './routes/adminUsers';
 import documentsRouter from './routes/documents';
+import duplicatesRouter from './routes/duplicates';
 import { CONFIG } from './config';
 
 const app = express();
@@ -46,6 +47,7 @@ app.use('/api/faq', faqRouter);
 app.use('/api/admin', adminStudentsRouter);
 app.use('/api/admin', adminParentsRouter);
 app.use('/api/admin', adminUsersRouter);
+app.use('/api/admin/duplicates', duplicatesRouter);
 app.use('/api/student', studentRouter);
 app.use('/api/parent', parentRouter);
 app.use('/api/attendance', attendanceRouter);

@@ -16,6 +16,7 @@ import { ParentsPanel } from './ParentsPanel';
 import { AttendancePanel } from './AttendancePanel';
 import { EvaluationsPanel } from './EvaluationsPanel';
 import { UsersPanel } from './UsersPanel';
+import { DuplicateReviewPanel } from './DuplicateReviewPanel';
 import { NotificationsPopover } from '../common/NotificationsPopover';
 import {
   LayoutDashboard,
@@ -33,6 +34,7 @@ import {
   HeartHandshake,
   CalendarCheck,
   Award,
+  GitCompare,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -43,7 +45,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToSite }) 
   const { user, logout } = useAuth();
   const { settings, addToast } = useApp();
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'applicants' | 'students' | 'parents' | 'attendance' | 'evaluations' | 'users' | 'messages' | 'settings'
+    'overview' | 'applicants' | 'duplicates' | 'students' | 'parents' | 'attendance' | 'evaluations' | 'users' | 'messages' | 'settings'
   >('overview');
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -168,6 +170,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToSite }) 
               <Users size={18} />
               <span>طلبات التسجيل</span>
             </button>
+
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => setActiveTab('duplicates')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '12px 20px',
+                  fontWeight: 700,
+                  fontSize: '0.96rem',
+                  borderBottom: `3px solid ${activeTab === 'duplicates' ? 'var(--color-gold)' : 'transparent'}`,
+                  color: activeTab === 'duplicates' ? 'var(--color-primary-dark)' : 'var(--color-text-muted)',
+                  transition: 'all var(--transition-fast)',
+                }}
+              >
+                <GitCompare size={18} />
+                <span>مراجعة التكرارات</span>
+              </button>
+            )}
 
             <button
               onClick={() => setActiveTab('students')}
@@ -439,6 +461,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToSite }) 
         )}
 
         {activeTab === 'applicants' && <ApplicantsTable />}
+        {activeTab === 'duplicates' && user?.role === 'admin' && <DuplicateReviewPanel />}
 
         {activeTab === 'students' && <StudentsPanel />}
 

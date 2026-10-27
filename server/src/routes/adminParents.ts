@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { query, run, queryOne } from '../db/database';
 import { requireAdmin, requireStrictAdmin, AuthRequest } from '../middleware/auth';
+import { enrichWithLegalNameMetadata } from '../utils/legalName';
 
 const router = Router();
 
@@ -103,7 +104,7 @@ router.get('/parents/:id', requireAdmin, async (req: AuthRequest, res: Response)
       return;
     }
 
-    const linkedStudents = await query(`
+    const rawLinkedStudents = await query(`
       SELECT 
         ps.id as relationship_id,
         ps.relationship,
@@ -115,6 +116,8 @@ router.get('/parents/:id', requireAdmin, async (req: AuthRequest, res: Response)
         s.academic_status,
         s.current_grade,
         s.educational_track,
+        s.legal_full_name,
+        s.name_verification_status,
         a.student_name,
         a.school,
         a.city
@@ -124,6 +127,8 @@ router.get('/parents/:id', requireAdmin, async (req: AuthRequest, res: Response)
       WHERE ps.parent_user_id = ?
       ORDER BY ps.is_primary DESC, ps.created_at ASC
     `, [parent.user_id]);
+
+    const linkedStudents = rawLinkedStudents.map(stu => enrichWithLegalNameMetadata(stu));
 
     res.json({
       success: true,

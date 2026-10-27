@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { query, queryOne, run } from '../db/database';
 import { requireStrictAdmin, AuthRequest } from '../middleware/auth';
+import { enrichWithLegalNameMetadata } from '../utils/legalName';
 
 const router = Router();
 
@@ -307,19 +308,25 @@ router.get('/users/:id', requireStrictAdmin, async (req: AuthRequest, res: Respo
 
     let linkedData: any = {};
     if (user.role === 'student') {
-      const student = await queryOne('SELECT * FROM students WHERE user_id = ?', [id]);
-      linkedData.student = student;
+      const student = await queryOne(`
+        SELECT s.*, a.student_name 
+        FROM students s 
+        LEFT JOIN applicants a ON a.id = s.applicant_id 
+        WHERE s.user_id = ?
+      `, [id]);
+      linkedData.student = student ? enrichWithLegalNameMetadata(student) : null;
     } else if (user.role === 'parent') {
       const parent = await queryOne('SELECT * FROM parents WHERE user_id = ?', [id]);
       if (parent) {
         try {
-          const children = await query(`
+          const rawChildren = await query(`
             SELECT s.*, a.student_name, ps.relationship_type, ps.is_primary_contact
             FROM parent_student ps
             JOIN students s ON s.id = ps.student_id
             LEFT JOIN applicants a ON a.id = s.applicant_id
             WHERE ps.parent_user_id = ? AND ps.status = 'active'
           `, [user.id]);
+          const children = rawChildren.map(c => enrichWithLegalNameMetadata(c));
           linkedData.parent = { ...parent, children };
         } catch {
           linkedData.parent = parent;

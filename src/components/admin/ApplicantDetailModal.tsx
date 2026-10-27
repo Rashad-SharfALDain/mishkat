@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Applicant, ApplicantStatus, ApplicantDocument } from '../../types';
+import { Applicant, ApplicantStatus, ApplicantDocument, DuplicatePair } from '../../types';
 import {
   updateApplicantStatus,
   createStudentFromApplicant,
@@ -7,6 +7,7 @@ import {
   verifyApplicantLegalName,
   fetchAdminApplicantDocuments,
   downloadAdminDocument,
+  fetchApplicantDuplicates,
 } from '../../services/api';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
@@ -32,6 +33,7 @@ import {
   Download,
   Lock,
   FileText,
+  GitCompare,
 } from 'lucide-react';
 
 interface ApplicantDetailModalProps {
@@ -77,7 +79,7 @@ export const ApplicantDetailModal: React.FC<ApplicantDetailModalProps> = ({
     const targetDecision = decisionOverride || verificationDecision;
 
     if ((targetDecision === 'reject' || targetDecision === 'correction_requested') && (!verificationNotes || verificationNotes.trim().length === 0)) {
-      addToast(targetDecision === 'reject' ? 'يرجى تدوين سبب الرفض في خانة الملاحظات' : 'يرجى كتابة المطلوب تصحيحه في خانة الملاحظات', 'warning');
+      addToast(targetDecision === 'reject' ? 'يرجى تدوين سبب الرفض في خانة الملاحظات' : 'يرجى كتابة المطلوب تصحيحه في خانة الملاحظات', 'error');
       return;
     }
 
@@ -107,6 +109,9 @@ export const ApplicantDetailModal: React.FC<ApplicantDetailModalProps> = ({
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [downloadingDocId, setDownloadingDocId] = useState<number | null>(null);
 
+  // Duplicate Detection State (Strict Admin only)
+  const [duplicatePairs, setDuplicatePairs] = useState<DuplicatePair[]>([]);
+
   useEffect(() => {
     fetchApplicantDetail(applicant.id).then((data) => {
       if (data.existing_student) {
@@ -119,6 +124,14 @@ export const ApplicantDetailModal: React.FC<ApplicantDetailModalProps> = ({
       .then((docs) => setDocuments(docs))
       .catch((err) => console.error('Failed to load documents:', err))
       .finally(() => setLoadingDocs(false));
+
+    if (user?.role === 'admin') {
+      fetchApplicantDuplicates(applicant.id)
+        .then((res) => {
+          if (res && res.pairs) setDuplicatePairs(res.pairs);
+        })
+        .catch((err) => console.error('Failed to load applicant duplicates:', err));
+    }
   }, [applicant.id]);
 
   const handleDownloadDoc = async (doc: ApplicantDocument) => {
@@ -382,6 +395,84 @@ export const ApplicantDetailModal: React.FC<ApplicantDetailModalProps> = ({
             </div>
           )}
 
+          {/* Duplicate Detection Alert Card (Strict Admin Only) */}
+          {user?.role === 'admin' && duplicatePairs.length > 0 && (
+            <div
+              style={{
+                backgroundColor: '#fffbeb',
+                border: '1.5px solid #fde68a',
+                borderRadius: 'var(--radius-md)',
+                padding: '16px 20px',
+                marginBottom: 20,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <GitCompare size={20} color="#b45309" />
+                  <h4 style={{ fontSize: '1.02rem', fontWeight: 800, color: '#92400e', margin: 0 }}>
+                    تنبيه تدقيق: تم اكتشاف {duplicatePairs.length} حالة تشابه/تكرار محتمل لهذا المتقدم
+                  </h4>
+                </div>
+                <span
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: 'var(--radius-full)',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    backgroundColor: '#fef3c7',
+                    color: '#b45309',
+                    border: '1px solid #fcd34d',
+                  }}
+                >
+                  مراجعة بشرية مطلوبة
+                </span>
+              </div>
+
+              <p style={{ fontSize: '0.84rem', color: '#78350f', margin: '0 0 10px 0' }}>
+                تشابه الأسماء أو أرقام الهواتف لا يعني حتمية تطابق الهوية. يُرجى مراجعة الحالات في قسم «مراجعة التكرارات» للبت الإداري دون أي حذف أو دمج تلقائي.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {duplicatePairs.slice(0, 3).map((p) => {
+                  const other = p.candidate_a.id === applicant.id ? p.candidate_b : p.candidate_a;
+                  return (
+                    <div
+                      key={p.pair_key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        backgroundColor: '#ffffff',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid #fef3c7',
+                        fontSize: '0.82rem',
+                      }}
+                    >
+                      <div>
+                        <strong>السجل المشابه:</strong> {other.legal_full_name} ({other.application_number || other.student_number || 'طلب'})
+                        <div style={{ fontSize: '0.78rem', color: '#92400e', marginTop: 2 }}>
+                          إشارات التطابق: {p.match_reasons.join(' | ')}
+                        </div>
+                      </div>
+                      <div>
+                        {p.latest_decision ? (
+                          <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#15803d' }}>
+                            تم البت: {p.latest_decision.decision}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#d97706' }}>
+                            بانتظار القرار
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Legal Four-Part Name Governance Section */}
           <div
             style={{
@@ -518,20 +609,25 @@ export const ApplicantDetailModal: React.FC<ApplicantDetailModalProps> = ({
 
             <div style={{ fontSize: '0.88rem', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
               <div>
-                <strong>الاسم الرباعي الكامل:</strong> {applicant.legal_full_name || applicant.student_name}
+                <strong>الاسم القانوني:</strong>{' '}
+                {applicant.is_verified_legal
+                  ? `${applicant.verified_legal_name || applicant.legal_full_name} (موثق رسمياً)`
+                  : applicant.legal_full_name
+                  ? `${applicant.legal_full_name} (${applicant.name_verification_label || 'قيد المراجعة والتوثيق'})`
+                  : `${applicant.student_name} (اسم تاريخي غير موثق)`}
               </div>
 
               {/* Strict Admin Verification Action */}
               {user?.role === 'admin' && currentVerificationStatus !== 'verified' && applicant.legal_first_name && (
                 <button
                   type="button"
-                  onClick={handleVerifyLegalName}
+                  onClick={() => handleExecuteVerificationDecision('verify')}
                   disabled={verifyingName}
                   className="btn btn-outline btn-sm"
                   style={{ gap: 6, fontWeight: 700, borderColor: '#16a34a', color: '#16a34a' }}
                 >
                   <FileCheck size={16} />
-                  <span>{verifyingName ? 'جاري الاعتماد...' : 'اعتماد الاسم القانوني (Strict Admin)'}</span>
+                  <span>{verifyingName ? 'جاري الاعتماد...' : 'اعتماد سريع (Strict Admin)'}</span>
                 </button>
               )}
             </div>

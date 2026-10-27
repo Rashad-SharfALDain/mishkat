@@ -4,11 +4,15 @@ export interface Applicant {
   id: string;
   application_number: string;
   student_name: string;
+  display_name?: string;
   legal_first_name?: string | null;
   legal_second_name?: string | null;
   legal_third_name?: string | null;
   legal_fourth_name?: string | null;
   legal_full_name?: string | null;
+  verified_legal_name?: string | null;
+  name_verification_label?: string;
+  is_verified_legal?: boolean;
   normalized_legal_name?: string | null;
   name_verification_status?: 'legacy_unverified' | 'pending' | 'verified' | 'rejected' | 'correction_requested' | null;
   name_verified_from?: string | null;
@@ -206,11 +210,15 @@ export interface Student {
   user_id: string;
   student_number: string;
   student_name?: string;
+  display_name?: string;
   legal_first_name?: string | null;
   legal_second_name?: string | null;
   legal_third_name?: string | null;
   legal_fourth_name?: string | null;
   legal_full_name?: string | null;
+  verified_legal_name?: string | null;
+  name_verification_label?: string;
+  is_verified_legal?: boolean;
   normalized_legal_name?: string | null;
   name_verification_status?: 'legacy_unverified' | 'pending' | 'verified' | 'rejected' | 'correction_requested' | null;
   name_verified_by?: string | null;
@@ -236,6 +244,12 @@ export interface Student {
 export interface StudentProfile {
   student_number: string;
   student_name: string;
+  display_name?: string;
+  legal_full_name?: string | null;
+  verified_legal_name?: string | null;
+  name_verification_status?: string | null;
+  name_verification_label?: string;
+  is_verified_legal?: boolean;
   academic_status: AcademicStatus;
   current_grade: string;
   current_level: string;
@@ -507,5 +521,70 @@ export interface InAppNotification {
   created_at: string;
   read_at?: string | null;
 }
+
+// ========================================================
+// Duplicate Detection & Review Types (Phase 2.4-E4)
+// ========================================================
+
+export type DuplicateClassification = 'no_duplicate_detected' | 'possible_duplicate' | 'probable_duplicate';
+export type DuplicateReviewDecision = 'NOT_DUPLICATE' | 'POSSIBLE_DUPLICATE' | 'CONFIRMED_DUPLICATE';
+
+export interface DuplicateCandidate {
+  id: string;
+  type: 'applicant' | 'student';
+  applicant_id?: string | null;
+  student_id?: string | null;
+  application_number?: string | null;
+  student_number?: string | null;
+  legal_full_name: string;
+  normalized_legal_name?: string | null;
+  name_verification_status?: string | null;
+  document_status?: string | null;
+  document_number?: string | null;
+  date_of_birth?: string | null;
+  phone?: string | null;
+  guardian_phone?: string | null;
+  created_at?: string | null;
+}
+
+export interface DuplicateSupportingSignals {
+  nameMatch: boolean;
+  dobMatch: boolean;
+  guardianPhoneMatch: boolean;
+  studentPhoneMatch: boolean;
+  documentNumberMatch: boolean;
+  studentLinkMatch: boolean;
+}
+
+export interface DuplicatePair {
+  pair_key: string;
+  classification: DuplicateClassification;
+  match_reasons: string[];
+  supporting_signals: DuplicateSupportingSignals;
+  candidate_a: DuplicateCandidate;
+  candidate_b: DuplicateCandidate;
+  latest_decision: {
+    decision: DuplicateReviewDecision;
+    reason: string;
+    reviewer_id: string;
+    reviewer_name: string;
+    reviewed_at: string;
+  } | null;
+}
+
+export interface DuplicateReviewCounts {
+  pending: number;
+  reviewed: number;
+  probable: number;
+  possible: number;
+}
+
+export interface DuplicatePairsResponse {
+  success: boolean;
+  total_pairs: number;
+  counts: DuplicateReviewCounts;
+  pairs: DuplicatePair[];
+}
+
 
 

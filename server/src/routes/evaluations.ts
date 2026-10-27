@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { query, run, queryOne } from '../db/database';
 import { requireAuth, requireAdmin, requireStrictAdmin, AuthRequest } from '../middleware/auth';
 import { notifyLinkedParents, notifyStudent } from '../utils/notifications';
+import { enrichWithLegalNameMetadata } from '../utils/legalName';
 
 const router = Router();
 
@@ -108,7 +109,7 @@ router.get('/student/:studentId', requireAuth, async (req: AuthRequest, res: Res
 
     // Fetch student basic details
     const student = await queryOne(`
-      SELECT s.id, s.student_number, a.student_name, s.educational_track, s.current_level
+      SELECT s.id, s.student_number, a.student_name, s.legal_full_name, s.name_verification_status, s.educational_track, s.current_level
       FROM students s
       LEFT JOIN applicants a ON a.id = s.applicant_id
       WHERE s.id = ?
@@ -171,7 +172,7 @@ router.get('/student/:studentId', requireAuth, async (req: AuthRequest, res: Res
 
     res.json({
       success: true,
-      student,
+      student: enrichWithLegalNameMetadata(student),
       summary: {
         total_evaluations: evaluations.length,
         overall_score: overallScore,

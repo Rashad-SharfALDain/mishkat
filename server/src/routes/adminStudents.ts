@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { query, run, queryOne } from '../db/database';
 import { requireAdmin, requireStrictAdmin, AuthRequest } from '../middleware/auth';
 import { validateFourPartLegalName } from '../utils/arabicName';
+import { enrichWithLegalNameMetadata } from '../utils/legalName';
 
 const router = Router();
 
@@ -287,13 +288,14 @@ router.get('/students', requireAdmin, async (req: AuthRequest, res: Response): P
 
     if (search && typeof search === 'string' && search.trim() !== '') {
       const q = `%${search.trim()}%`;
-      sql += ' AND (s.student_number LIKE ? OR a.student_name LIKE ? OR a.phone LIKE ? OR a.school LIKE ?)';
-      params.push(q, q, q, q);
+      sql += ' AND (s.student_number LIKE ? OR a.student_name LIKE ? OR s.legal_full_name LIKE ? OR a.legal_full_name LIKE ? OR a.phone LIKE ? OR a.school LIKE ?)';
+      params.push(q, q, q, q, q, q);
     }
 
     sql += ' ORDER BY s.created_at DESC';
 
-    const students = await query(sql, params);
+    const rows = await query(sql, params);
+    const students = rows.map((stu: any) => enrichWithLegalNameMetadata(stu));
     res.json({ success: true, students });
   } catch (error) {
     console.error('Error fetching students:', error);
@@ -359,7 +361,7 @@ router.get('/students/:id', requireAdmin, async (req: AuthRequest, res: Response
 
     res.json({
       success: true,
-      student,
+      student: enrichWithLegalNameMetadata(student),
       activity_stats: {
         total: activityStats?.total_activities || 0,
         completed: activityStats?.completed_activities || 0,

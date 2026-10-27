@@ -4,7 +4,9 @@ import { query, run, queryOne } from '../db/database';
 import { requireAuth, requireAdmin, requireStrictAdmin, AuthRequest } from '../middleware/auth';
 import { rateLimiter } from '../middleware/rateLimiter';
 import { validateFourPartLegalName, normalizeArabicText, detectPotentialDuplicate } from '../utils/arabicName';
+import { findDuplicatePairs } from '../services/duplicateDetection';
 import { recordAudit } from '../utils/auditLogger';
+import { enrichWithLegalNameMetadata } from '../utils/legalName';
 
 const router = Router();
 
@@ -267,12 +269,13 @@ router.get('/admin/dashboard', requireAdmin, async (_req: AuthRequest, res: Resp
     const completedRow = await queryOne('SELECT COUNT(*) as count FROM applicants WHERE status = "مكتمل"');
     const studentsTotalRow = await queryOne('SELECT COUNT(*) as count FROM students');
 
-    const recentApplicants = await query(`
-      SELECT id, application_number, student_name, grade, city, phone, status, created_at
+    const recentApplicantsRaw = await query(`
+      SELECT id, application_number, student_name, legal_full_name, name_verification_status, grade, city, phone, status, created_at
       FROM applicants
       ORDER BY created_at DESC
       LIMIT 6
     `);
+    const recentApplicants = (recentApplicantsRaw || []).map((a: any) => enrichWithLegalNameMetadata(a));
 
     res.json({
       success: true,
@@ -308,19 +311,22 @@ router.get('/admin/applicants', requireAdmin, async (req: AuthRequest, res: Resp
 
     if (search && typeof search === 'string' && search.trim() !== '') {
       const q = `%${search.trim()}%`;
-      sql += ' AND (student_name LIKE ? OR application_number LIKE ? OR phone LIKE ? OR school LIKE ?)';
-      params.push(q, q, q, q);
+      sql += ' AND (student_name LIKE ? OR legal_full_name LIKE ? OR application_number LIKE ? OR phone LIKE ? OR school LIKE ?)';
+      params.push(q, q, q, q, q);
     }
 
     sql += ' ORDER BY created_at DESC';
 
     const rows = await query(sql, params);
-    const applicants = rows.map((app) => ({
-      ...app,
-      interested_tracks: typeof app.interested_tracks === 'string'
-        ? JSON.parse(app.interested_tracks || '[]')
-        : (app.interested_tracks || []),
-    }));
+    const applicants = rows.map((app: any) => {
+      const enriched = enrichWithLegalNameMetadata(app);
+      return {
+        ...enriched,
+        interested_tracks: typeof app.interested_tracks === 'string'
+          ? JSON.parse(app.interested_tracks || '[]')
+          : (app.interested_tracks || []),
+      };
+    });
 
     res.json({ success: true, applicants });
   } catch (error) {
@@ -352,7 +358,12 @@ router.get('/admin/applicants/:id', requireAdmin, async (req: AuthRequest, res: 
     const payment = await queryOne('SELECT * FROM payments WHERE application_id = ?', [id]);
     const existingStudent = await queryOne('SELECT id, student_number, academic_status, created_at FROM students WHERE applicant_id = ?', [id]);
 
-    res.json({ success: true, applicant, payment, existing_student: existingStudent });
+    res.json({
+      success: true,
+      applicant: enrichWithLegalNameMetadata(applicant),
+      payment,
+      existing_student: existingStudent
+    });
   } catch (error) {
     res.status(500).json({ error: 'حدث خطأ أثناء جلب تفاصيل الطلب' });
   }
@@ -553,6 +564,28 @@ router.patch('/admin/applicants/:id', requireAdmin, async (req: AuthRequest, res
   }
 });
 
+// GET /api/admin/applicants/:id/duplicates
+// Get potential duplicates for a specific applicant (Strict Admin only)
+router.get('/admin/applicants/:id/duplicates', requireStrictAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const applicant = await queryOne('SELECT id FROM applicants WHERE id = ?', [id]);
+    if (!applicant) {
+      res.status(404).json({ error: 'طلب التسجيل غير موجود' });
+      return;
+    }
+    const pairs = await findDuplicatePairs({ applicantId: id });
+    res.json({
+      success: true,
+      total_pairs: pairs.length,
+      pairs,
+    });
+  } catch (error) {
+    console.error('Error fetching duplicates for applicant:', error);
+    res.status(500).json({ error: 'حدث خطأ أثناء استرجاع حالات التكرار للطلب' });
+  }
+});
+
 // POST /api/admin/applicants/:id/verify-name
 // Human Verification of legal four-part name & identity document (Strict Admin only)
 router.post('/admin/applicants/:id/verify-name', requireStrictAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
@@ -589,6 +622,14 @@ router.post('/admin/applicants/:id/verify-name', requireStrictAdmin, async (req:
         ? notes.trim()
         : 'تم اعتماد وتوثيق الاسم القانوني الرباعي ومطابقته للوثيقة الرسمية';
 
+      let resolvedSecondApproverId: string | null = null;
+      if (second_approver && typeof second_approver === 'string') {
+        const approverUser = await queryOne('SELECT id FROM users WHERE id = ?', [second_approver.trim()]);
+        if (approverUser) {
+          resolvedSecondApproverId = approverUser.id;
+        }
+      }
+
       await run(`
         UPDATE applicants
         SET name_verification_status = 'verified',
@@ -600,7 +641,7 @@ router.post('/admin/applicants/:id/verify-name', requireStrictAdmin, async (req:
             name_second_approved_at = CASE WHEN ? IS NOT NULL THEN CURRENT_TIMESTAMP ELSE name_second_approved_at END,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `, [verifiedFrom, req.user?.id, verificationNotes, second_approver || null, second_approver || null, id]);
+      `, [verifiedFrom, req.user?.id, verificationNotes, resolvedSecondApproverId, resolvedSecondApproverId, id]);
 
       // Update applicant_documents to verified
       await run(`

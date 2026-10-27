@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { query, run, queryOne } from '../db/database';
 import { requireAuth, requireAdmin, AuthRequest } from '../middleware/auth';
 import { createNotification, notifyLinkedParents, notifyStudent } from '../utils/notifications';
+import { enrichWithLegalNameMetadata } from '../utils/legalName';
 
 const router = Router();
 
@@ -99,7 +100,7 @@ router.get('/sessions/:id', requireAdmin, async (req: AuthRequest, res: Response
 
     // Fetch enrolled students and their attendance status for this session
     const attendanceRecords = await query(`
-      SELECT st.id as student_id, st.student_number, a.student_name, st.educational_track,
+      SELECT st.id as student_id, st.student_number, a.student_name, st.legal_full_name, st.name_verification_status, st.educational_track,
              att.id as attendance_id, att.status as attendance_status, att.notes, att.recorded_at
       FROM students st
       LEFT JOIN applicants a ON a.id = st.applicant_id
@@ -108,7 +109,8 @@ router.get('/sessions/:id', requireAdmin, async (req: AuthRequest, res: Response
       ORDER BY st.student_number ASC
     `, [id]);
 
-    res.json({ success: true, session, students: attendanceRecords });
+    const students = (attendanceRecords || []).map((r: any) => enrichWithLegalNameMetadata(r));
+    res.json({ success: true, session, students });
   } catch (error) {
     console.error('Error fetching session details:', error);
     res.status(500).json({ error: 'تعذر جلب تفاصيل الجلسة' });
@@ -268,7 +270,7 @@ router.get('/student/:studentId', requireAuth, async (req: AuthRequest, res: Res
 
     // Fetch student summary
     const student = await queryOne(`
-      SELECT s.id, s.student_number, a.student_name, s.educational_track
+      SELECT s.id, s.student_number, a.student_name, s.legal_full_name, s.name_verification_status, s.educational_track
       FROM students s
       LEFT JOIN applicants a ON a.id = s.applicant_id
       WHERE s.id = ?
@@ -313,7 +315,7 @@ router.get('/student/:studentId', requireAuth, async (req: AuthRequest, res: Res
 
     res.json({
       success: true,
-      student,
+      student: enrichWithLegalNameMetadata(student),
       summary: {
         total_sessions: totalSessions,
         present,
@@ -441,7 +443,7 @@ router.get('/excuses', requireAuth, async (req: AuthRequest, res: Response): Pro
     }
 
     let sql = `
-      SELECT e.*, st.student_number, a.student_name, u.name as reviewer_name,
+      SELECT e.*, st.student_number, a.student_name, st.legal_full_name, st.name_verification_status, u.name as reviewer_name,
              s.title as session_title
       FROM attendance_excuses e
       JOIN students st ON st.id = e.student_id
@@ -468,7 +470,8 @@ router.get('/excuses', requireAuth, async (req: AuthRequest, res: Response): Pro
     }
 
     sql += ' ORDER BY e.created_at DESC';
-    const excuses = await query(sql, params);
+    const rows = await query(sql, params);
+    const excuses = (rows || []).map((e: any) => enrichWithLegalNameMetadata(e));
     res.json({ success: true, excuses });
   } catch (error) {
     console.error('Error listing excuses:', error);

@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { query, run, queryOne } from '../db/database';
 import { requireStudent, AuthRequest } from '../middleware/auth';
+import { enrichWithLegalNameMetadata } from '../utils/legalName';
 
 const router = Router();
 
@@ -27,6 +28,8 @@ router.get('/dashboard', requireStudent, async (req: AuthRequest, res: Response)
       res.status(404).json({ error: 'لم يتم العثور على سجل الطالب' });
       return;
     }
+
+    const enriched = enrichWithLegalNameMetadata(student);
 
     // 1. Fetch assigned program details
     const program = await queryOne(`
@@ -82,6 +85,11 @@ router.get('/dashboard', requireStudent, async (req: AuthRequest, res: Response)
         id: student.id,
         student_number: student.student_number,
         student_name: student.student_name,
+        legal_full_name: student.legal_full_name || null,
+        verified_legal_name: enriched.verified_legal_name,
+        name_verification_status: enriched.name_verification_status,
+        name_verification_label: enriched.name_verification_label,
+        is_verified_legal: enriched.is_verified_legal,
         academic_status: student.academic_status,
         current_grade: student.current_grade,
         current_level: student.current_level,
@@ -116,11 +124,18 @@ router.get('/profile', requireStudent, async (req: AuthRequest, res: Response): 
       return;
     }
 
+    const enriched = enrichWithLegalNameMetadata(student);
+
     res.json({
       success: true,
       profile: {
         student_number: student.student_number,
         student_name: student.student_name,
+        legal_full_name: student.legal_full_name || null,
+        verified_legal_name: enriched.verified_legal_name,
+        name_verification_status: enriched.name_verification_status,
+        name_verification_label: enriched.name_verification_label,
+        is_verified_legal: enriched.is_verified_legal,
         academic_status: student.academic_status,
         current_grade: student.current_grade,
         current_level: student.current_level,

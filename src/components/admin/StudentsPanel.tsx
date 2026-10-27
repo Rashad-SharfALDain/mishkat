@@ -255,7 +255,18 @@ export const StudentsPanel: React.FC = () => {
                       </span>
                     </td>
                     <td>
-                      <div style={{ fontWeight: 700, color: 'var(--color-text-main)' }}>{stu.student_name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontWeight: 700, color: 'var(--color-text-main)' }}>{stu.student_name}</span>
+                        {stu.is_verified_legal ? (
+                          <span className="badge badge-accepted" style={{ fontSize: '0.68rem', padding: '1px 5px' }} title="اسم قانوني موثق">
+                            ✓ موثق
+                          </span>
+                        ) : (
+                          <span className="badge" style={{ fontSize: '0.68rem', padding: '1px 5px', backgroundColor: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }} title={stu.name_verification_label || 'غير موثق'}>
+                            {stu.name_verification_label || 'غير موثق'}
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)' }}>{stu.user_email}</div>
                     </td>
                     <td>
@@ -393,9 +404,25 @@ export const StudentsPanel: React.FC = () => {
                 {/* Header Banner */}
                 <div style={{ backgroundColor: 'var(--color-bg-subtle)', padding: 18, borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                   <div>
-                    <h2 style={{ margin: '0 0 4px', fontSize: '1.3rem', fontWeight: 800, color: 'var(--color-primary-dark)' }}>
-                      {studentDetail.student.student_name}
-                    </h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: 'var(--color-primary-dark)' }}>
+                        {studentDetail.student.display_name || studentDetail.student.student_name}
+                      </h2>
+                      {studentDetail.student.is_verified_legal ? (
+                        <span className="badge badge-accepted" style={{ fontSize: '0.78rem', padding: '2px 8px' }}>
+                          ✓ الاسم القانوني موثق
+                        </span>
+                      ) : (
+                        <span className="badge" style={{ fontSize: '0.78rem', padding: '2px 8px', backgroundColor: 'var(--color-border-light)', color: 'var(--color-text-muted)' }}>
+                          {studentDetail.student.name_verification_label || 'غير موثق'}
+                        </span>
+                      )}
+                    </div>
+                    {studentDetail.student.is_verified_legal && studentDetail.student.verified_legal_name && (
+                      <div style={{ fontSize: '0.82rem', color: '#16a34a', fontWeight: 600, marginBottom: 4 }}>
+                        الاسم القانوني المعتمد: {studentDetail.student.verified_legal_name}
+                      </div>
+                    )}
                     <div style={{ display: 'flex', gap: 10, fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
                       <span>المدرسة: {studentDetail.student.school}</span>
                       <span>•</span>

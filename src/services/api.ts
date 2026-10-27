@@ -1,4 +1,4 @@
-import { Applicant, ProgramTrack, FAQItem, InstitutionSettings, DashboardStats, ContactMessage, AdminUser, Student, Parent, LinkedStudentDetail, SystemUser, AuditLogItem, RolePermissionsMatrix, ApplicantDocument, DocumentUploadSession } from '../types';
+import { Applicant, ProgramTrack, FAQItem, InstitutionSettings, DashboardStats, ContactMessage, AdminUser, Student, Parent, LinkedStudentDetail, SystemUser, AuditLogItem, RolePermissionsMatrix, ApplicantDocument, DocumentUploadSession, DuplicatePairsResponse, DuplicateReviewDecision, DuplicatePair } from '../types';
 
 const API_BASE = '/api';
 
@@ -182,16 +182,17 @@ export async function updateApplicantStatus(
 
 export async function verifyApplicantLegalName(
   id: string,
-  verified_from: string = 'national_id',
-  notes?: string
-): Promise<{ success: boolean; message: string; name_verification_status: string }> {
+  action: 'verify' | 'reject' | 'correction_requested' = 'verify',
+  notes?: string,
+  verified_from: string = 'national_id'
+): Promise<{ success: boolean; message: string; name_verification_status: string; verified_by?: string; verified_at?: string }> {
   const res = await fetch(`${API_BASE}/admin/applicants/${id}/verify-name`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...getAuthHeader(),
     },
-    body: JSON.stringify({ verified_from, notes }),
+    body: JSON.stringify({ action, verified_from, notes }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'فشل توثيق الاسم القانوني');
@@ -326,38 +327,6 @@ export async function downloadAdminDocument(documentId: number, originalFilename
   window.URL.revokeObjectURL(url);
   document.body.removeChild(a);
 }
-
-export async function verifyApplicantLegalName(
-  applicantId: string,
-  action: 'verify' | 'reject' | 'correction_requested',
-  notes?: string,
-  verifiedFrom?: string
-): Promise<{
-  success: boolean;
-  message: string;
-  name_verification_status: string;
-  verified_by: string;
-  verified_at: string;
-}> {
-  const res = await fetch(`${API_BASE}/admin/applicants/${applicantId}/verify-name`, {
-    method: 'POST',
-    headers: {
-      ...getAuthHeader(),
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      action,
-      notes,
-      verified_from: verifiedFrom,
-    }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'فشل اتخاذ قرار التحقق من الاسم');
-  }
-  return res.json();
-}
-
 
 // ==========================================
 // PHASE 2.1 — ADMIN STUDENT MANAGEMENT APIS
@@ -969,6 +938,62 @@ export async function submitResetPassword(token: string, new_password: string): 
   if (!res.ok) throw new Error(data.error || 'فشل إعادة تعيين كلمة المرور');
   return data;
 }
+
+// ========================================================
+// Duplicate Detection & Review Services (Phase 2.4-E4)
+// ========================================================
+
+export async function fetchDuplicatePairs(options?: {
+  applicantId?: string;
+  classification?: string;
+  status?: string;
+}): Promise<DuplicatePairsResponse> {
+  const params = new URLSearchParams();
+  if (options?.applicantId) params.append('applicant_id', options.applicantId);
+  if (options?.classification) params.append('classification', options.classification);
+  if (options?.status) params.append('status', options.status);
+
+  const queryStr = params.toString() ? `?${params.toString()}` : '';
+  const res = await fetch(`${API_BASE}/admin/duplicates${queryStr}`, {
+    headers: getAuthHeader(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'تعذر استرجاع حالات التكرار المحتملة');
+  return data;
+}
+
+export async function fetchApplicantDuplicates(applicantId: string): Promise<{ success: boolean; total_pairs: number; pairs: DuplicatePair[] }> {
+  const res = await fetch(`${API_BASE}/admin/applicants/${applicantId}/duplicates`, {
+    headers: getAuthHeader(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'تعذر استرجاع حالات التكرار للطلب');
+  return data;
+}
+
+export async function submitDuplicateReview(payload: {
+  candidate_a_id: string;
+  candidate_b_id: string;
+  candidate_a_type?: string;
+  candidate_b_type?: string;
+  decision: DuplicateReviewDecision;
+  reason: string;
+  classification?: string;
+  notes?: string;
+}): Promise<{ success: boolean; message: string; pair_key: string; decision: string; reviewed_by: string; reviewed_at: string }> {
+  const res = await fetch(`${API_BASE}/admin/duplicates/review`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'فشل تسجيل قرار المراجعة');
+  return data;
+}
+
 
 
 
